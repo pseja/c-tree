@@ -13,6 +13,7 @@ typedef struct t_parameters
     bool recursive;
     bool lsF;
     bool dont_indent;
+    bool full_path;
 } Parameters;
 
 void strToLower(char *str)
@@ -51,43 +52,53 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
         printf("%s\n", path);
     }
 
+    char object_path[4096];
+    if (params->full_path)
+    {
+        strcpy(object_path, path);
+    }
+    else
+    {
+        strcpy(object_path, last_slash + 1);
+    }
+
     switch (de->d_type)
     {
     case DT_DIR: // directory
         if (params->lsF)
         {
-            strcat(last_slash + 1, "/");
+            strcat(object_path, "/");
         }
-        printf(BLU "%s\n" COLOR_RESET, last_slash + 1);
+        printf(BLU "%s\n" COLOR_RESET, object_path);
         break;
     case DT_FIFO: // named pipe or FIFO
         if (params->lsF)
         {
-            strcat(last_slash + 1, "|");
+            strcat(object_path, "|");
         }
-        printf(MAG "%s\n" COLOR_RESET, last_slash + 1);
+        printf(MAG "%s\n" COLOR_RESET, object_path);
         break;
     case DT_SOCK: // local-domain socket
         if (params->lsF)
         {
-            strcat(last_slash + 1, "=");
+            strcat(object_path, "=");
         }
-        printf(RED "%s\n" COLOR_RESET, last_slash + 1);
+        printf(RED "%s\n" COLOR_RESET, object_path);
         break;
     case DT_CHR: // character device
-        printf(GRN "%s\n" COLOR_RESET, last_slash + 1);
+        printf(GRN "%s\n" COLOR_RESET, object_path);
         break;
     case DT_BLK: // block device
-        printf(YEL "%s\n" COLOR_RESET, last_slash + 1);
+        printf(YEL "%s\n" COLOR_RESET, object_path);
         break;
     case DT_LNK: // symbolic link
-        printf(CYN "%s\n" COLOR_RESET, last_slash + 1);
+        printf(CYN "%s\n" COLOR_RESET, object_path);
         break;
 
     default:
-        if (colorAndPrintSpecialNames(last_slash + 1) != 0)
+        if (colorAndPrintSpecialNames(object_path) != 0)
         {
-            printf("%s\n", last_slash + 1);
+            printf("%s\n", object_path);
         }
         break;
     }
@@ -164,7 +175,6 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
             }
 
             printObjectNameFromPath(newPath, de, params);
-
             last_at_depth[depth - 1] = 1;
         }
         else
@@ -192,7 +202,7 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "riF";
+    char *options = "rifF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -206,6 +216,9 @@ int handleParameters(int argc, char **argv, Parameters *params)
             break;
         case 'F':
             params->lsF = true;
+            break;
+        case 'f':
+            params->full_path = true;
             break;
 
         default:
