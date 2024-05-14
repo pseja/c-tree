@@ -12,6 +12,7 @@ typedef struct t_parameters
 {
     bool recursive;
     bool lsF;
+    bool dont_indent;
 } Parameters;
 
 void strToLower(char *str)
@@ -140,27 +141,39 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
         strcat(newPath, "/");
         strcat(newPath, de->d_name);
 
-        for (int i = 0; i < depth - 1; i++)
+        if (!params->dont_indent)
         {
-            if (last_at_depth[i])
+            for (int i = 0; i < depth - 1; i++)
             {
-                printf("  ");
-            }
-            else
-            {
-                printf(BLK "┃  " COLOR_RESET);
+                if (last_at_depth[i])
+                {
+                    printf("  ");
+                }
+                else
+                {
+                    printf(BLK "┃  " COLOR_RESET);
+                }
             }
         }
 
         if (current_file == file_count)
         {
-            printf(BLK "┗━ " COLOR_RESET);
+            if (!params->dont_indent)
+            {
+                printf(BLK "┗━ " COLOR_RESET);
+            }
+
             printObjectNameFromPath(newPath, de, params);
+
             last_at_depth[depth - 1] = 1;
         }
         else
         {
-            printf(BLK "┣━ " COLOR_RESET);
+            if (!params->dont_indent)
+            {
+                printf(BLK "┣━ " COLOR_RESET);
+            }
+
             printObjectNameFromPath(newPath, de, params);
         }
 
@@ -179,7 +192,7 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "rF";
+    char *options = "riF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -187,6 +200,9 @@ int handleParameters(int argc, char **argv, Parameters *params)
         {
         case 'r':
             params->recursive = true;
+            break;
+        case 'i':
+            params->dont_indent = true;
             break;
         case 'F':
             params->lsF = true;
