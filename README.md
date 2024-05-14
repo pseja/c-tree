@@ -2,7 +2,6 @@
 Recursive directory listing program with depth-indented listing of files in C
 
 ## Usage
-`make`
 `./tree [-rF] [PATH ...]`
 - if no path is specified, default path is used, which is path to the current directory
 
