@@ -11,6 +11,7 @@
 typedef struct t_parameters
 {
     bool recursive;
+    bool lsF;
 } Parameters;
 
 void strToLower(char *str)
@@ -40,7 +41,7 @@ int colorAndPrintSpecialNames(char *file_name)
     return 1;
 }
 
-void printObjectNameFromPath(char *path, struct dirent *de)
+void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
 {
     char *last_slash = strrchr(path, '/');
 
@@ -52,13 +53,24 @@ void printObjectNameFromPath(char *path, struct dirent *de)
     switch (de->d_type)
     {
     case DT_DIR: // directory
-        strcat(last_slash + 1, "/");
+        if (params->lsF)
+        {
+            strcat(last_slash + 1, "/");
+        }
         printf(BLU "%s\n" COLOR_RESET, last_slash + 1);
         break;
     case DT_FIFO: // named pipe or FIFO
+        if (params->lsF)
+        {
+            strcat(last_slash + 1, "|");
+        }
         printf(MAG "%s\n" COLOR_RESET, last_slash + 1);
         break;
     case DT_SOCK: // local-domain socket
+        if (params->lsF)
+        {
+            strcat(last_slash + 1, "=");
+        }
         printf(RED "%s\n" COLOR_RESET, last_slash + 1);
         break;
     case DT_CHR: // character device
@@ -143,13 +155,13 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
         if (current_file == file_count)
         {
             printf(BLK "┗━ " COLOR_RESET);
-            printObjectNameFromPath(newPath, de);
+            printObjectNameFromPath(newPath, de, params);
             last_at_depth[depth - 1] = 1;
         }
         else
         {
             printf(BLK "┣━ " COLOR_RESET);
-            printObjectNameFromPath(newPath, de);
+            printObjectNameFromPath(newPath, de, params);
         }
 
         if (de->d_type == DT_DIR && params->recursive)
@@ -167,7 +179,7 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "r";
+    char *options = "rF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -175,6 +187,9 @@ int handleParameters(int argc, char **argv, Parameters *params)
         {
         case 'r':
             params->recursive = true;
+            break;
+        case 'F':
+            params->lsF = true;
             break;
 
         default:
