@@ -4,7 +4,14 @@
 #include <dirent.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <stdbool.h>
 #include "ANSI-color-codes.h"
+
+typedef struct t_parameters
+{
+    bool recursive;
+} Parameters;
 
 void strToLower(char *str)
 {
@@ -73,7 +80,7 @@ void printObjectNameFromPath(char *path, struct dirent *de)
     }
 }
 
-void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth)
+void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
 {
     indent += 2;
     depth++;
@@ -86,7 +93,7 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth)
 
     if (dr == NULL)
     {
-        fprintf(stderr, RED "Could not open current directory\n" COLOR_RESET);
+        fprintf(stderr, RED "Could not open '%s' directory\n" COLOR_RESET, root_path);
         return;
     }
 
@@ -99,6 +106,13 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth)
     }
 
     rewinddir(dr);
+
+    static bool print_root_dir = false;
+    if (!print_root_dir)
+    {
+        printf(BLU "%s\n" COLOR_RESET, root_path);
+        print_root_dir = true;
+    }
 
     while ((de = readdir(dr)) != NULL)
     {
@@ -138,9 +152,9 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth)
             printObjectNameFromPath(newPath, de);
         }
 
-        if (de->d_type == DT_DIR)
+        if (de->d_type == DT_DIR && params->recursive)
         {
-            goThroughFiles(newPath, indent, last_at_depth, depth);
+            goThroughFiles(newPath, indent, last_at_depth, depth, params);
             last_at_depth[depth] = 0;
         }
 
@@ -150,9 +164,30 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth)
     closedir(dr);
 }
 
-int main()
+int handleParameters(int argc, char **argv, Parameters *params)
 {
-    setbuf(stdout, NULL);
+    int option = 0;
+    char *options = "r";
+
+    while ((option = getopt(argc, argv, options)) != -1)
+    {
+        switch (option)
+        {
+        case 'r':
+            params->recursive = true;
+            break;
+
+        default:
+            fprintf(stderr, "Usage: %s [-%s] [path]\n", argv[0], options);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int treeSetup(int argc, char **argv, Parameters *params)
+{
     int *last_at_depth = calloc(256, sizeof(int));
     if (last_at_depth == NULL)
     {
@@ -160,10 +195,31 @@ int main()
         return -1;
     }
 
-    printf(BLU ".\n" COLOR_RESET);
-    goThroughFiles(".", -2, last_at_depth, 0);
+    char *path = argv[argc - 1];
+    if ((strcmp(argv[0], argv[argc - 1])) == 0 || argv[argc - 1][0] == '-')
+    {
+        strcpy(path, ".");
+    }
+
+    goThroughFiles(path, -2, last_at_depth, 0, params);
 
     free(last_at_depth);
 
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    Parameters params;
+
+    if (handleParameters(argc, argv, &params) != 0)
+    {
+        return 1;
+    }
+
+    if (treeSetup(argc, argv, &params) != 0)
+    {
+        return 1;
+    }
     return 0;
 }
