@@ -7,7 +7,7 @@ LDFLAGS=-D_DEFAULT_SOURCE
 tree: tree.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-tree.o: tree.c
+tree.o: tree.c tree.h
 	$(CC) $(CFLAGS) -c $< -o $@ $(LDFLAGS)
 
 clean:

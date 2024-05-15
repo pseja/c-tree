@@ -1,15 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <string.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include "ANSI-color-codes.h"
+#include "tree.h"
 
-typedef struct t_parameters
+struct t_parameters
 {
     bool recursive;
     bool lsF;
@@ -17,7 +8,7 @@ typedef struct t_parameters
     bool full_path;
     bool directories_only;
     bool print_file_size;
-} Parameters;
+};
 
 int getFileSize(const char *file_path)
 {
@@ -134,23 +125,10 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
     }
 }
 
-int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
+int countFilesInDirectory(DIR *dr)
 {
-    indent += 2;
-    depth++;
-
     struct dirent *de;
     int file_count = 0;
-    int current_file = 0;
-    int err_code = 0;
-
-    DIR *dr = opendir(root_path);
-
-    if (dr == NULL)
-    {
-        fprintf(stderr, RED "Could not open '%s' directory\n" COLOR_RESET, root_path);
-        return -1;
-    }
 
     while ((de = readdir(dr)) != NULL)
     {
@@ -159,14 +137,53 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
             file_count++;
         }
     }
-
     rewinddir(dr);
 
-    static bool print_root_dir = false;
-    if (!print_root_dir)
+    return file_count;
+}
+
+void printFileIndent(int depth, int **last_at_depth, Parameters *params)
+{
+    if (!params->dont_indent)
+    {
+        for (int i = 0; i < depth - 1; i++)
+        {
+            printf(last_at_depth[i] ? "  " : BLK "┃  " COLOR_RESET);
+        }
+    }
+}
+
+void printFilePrefixPipe(int current_file, int file_count, Parameters *params)
+{
+    if (!params->dont_indent)
+    {
+        printf(current_file == file_count ? BLK "┗━ " COLOR_RESET : BLK "┣━ " COLOR_RESET);
+    }
+}
+
+int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
+{
+    indent += 2;
+    depth++;
+
+    struct dirent *de;
+    int current_file = 0;
+    int err_code = 0;
+
+    DIR *dr = opendir(root_path);
+    if (dr == NULL)
+    {
+        fprintf(stderr, RED "Could not open '%s' directory\n" COLOR_RESET, root_path);
+        return -1;
+    }
+
+    int file_count = countFilesInDirectory(dr);
+
+    static bool printed_root_dir = false;
+    if (!printed_root_dir)
     {
         printf(BLU "%s\n" COLOR_RESET, root_path);
-        print_root_dir = true;
+        printed_root_dir = true;
     }
 
     while ((de = readdir(dr)) != NULL)
@@ -175,8 +192,6 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
         {
             continue;
         }
-
-        current_file++;
 
         char *newPath = malloc(strlen(root_path) + strlen(de->d_name) + 2);
         if (newPath == NULL)
@@ -188,39 +203,17 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
         strcat(newPath, "/");
         strcat(newPath, de->d_name);
 
-        if (!params->dont_indent)
-        {
-            for (int i = 0; i < depth - 1; i++)
-            {
-                if (last_at_depth[i])
-                {
-                    printf("  ");
-                }
-                else
-                {
-                    printf(BLK "┃  " COLOR_RESET);
-                }
-            }
-        }
+        printFileIndent(depth, &last_at_depth, params);
+
+        current_file++;
+
+        printFilePrefixPipe(depth, file_count, params);
+
+        printObjectNameFromPath(newPath, de, params);
 
         if (current_file == file_count)
         {
-            if (!params->dont_indent)
-            {
-                printf(BLK "┗━ " COLOR_RESET);
-            }
-
-            printObjectNameFromPath(newPath, de, params);
             last_at_depth[depth - 1] = 1;
-        }
-        else
-        {
-            if (!params->dont_indent)
-            {
-                printf(BLK "┣━ " COLOR_RESET);
-            }
-
-            printObjectNameFromPath(newPath, de, params);
         }
 
         if (de->d_type == DT_DIR && params->recursive)
