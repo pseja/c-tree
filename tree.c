@@ -9,6 +9,7 @@ struct t_parameters
     bool directories_only;
     bool print_file_size;
     bool ascii_pipes;
+    bool print_hidden;
 };
 
 int getFileSize(const char *file_path)
@@ -126,17 +127,19 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
     }
 }
 
-int countFilesInDirectory(DIR *dr)
+int countFilesInDirectory(DIR *dr, Parameters *params)
 {
     struct dirent *de;
     int file_count = 0;
 
     while ((de = readdir(dr)) != NULL)
     {
-        if (strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0)
+        if ((strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) || (!params->print_hidden && de->d_name[0] == '.'))
         {
-            file_count++;
+            continue;
         }
+
+        file_count++;
     }
     rewinddir(dr);
 
@@ -181,7 +184,7 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
         return -1;
     }
 
-    int file_count = countFilesInDirectory(dr);
+    int file_count = countFilesInDirectory(dr, params);
 
     static bool printed_root_dir = false;
     if (!printed_root_dir)
@@ -192,7 +195,7 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
 
     while ((de = readdir(dr)) != NULL)
     {
-        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+        if ((strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) || (!params->print_hidden && de->d_name[0] == '.'))
         {
             continue;
         }
@@ -235,7 +238,7 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "rifsAF";
+    char *options = "arifsAF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -259,9 +262,12 @@ int handleParameters(int argc, char **argv, Parameters *params)
         case 'A':
             params->ascii_pipes = true;
             break;
+        case 'a':
+            params->print_hidden = true;
+            break;
 
         default:
-            fprintf(stderr, "Usage: %s [-%s] [path]\n", argv[0], options);
+            fprintf(stderr, "Usage: %s [-%s] [PATH ...]\n", argv[0], options);
             return 1;
         }
     }
@@ -302,6 +308,7 @@ Parameters initializeParameters()
     params.print_file_size = false;
     params.recursive = false;
     params.ascii_pipes = false;
+    params.print_hidden = false;
 
     return params;
 }

@@ -50,7 +50,7 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params);
  * @param dr Directory structure.
  * @return Number of files in the directory.
  */
-int countFilesInDirectory(DIR *dr);
+int countFilesInDirectory(DIR *dr, Parameters *params);
 
 /**
  * @brief Function to print the indentation for a file.
