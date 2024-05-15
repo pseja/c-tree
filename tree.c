@@ -8,6 +8,7 @@ struct t_parameters
     bool full_path;
     bool directories_only;
     bool print_file_size;
+    bool ascii_pipes;
 };
 
 int getFileSize(const char *file_path)
@@ -142,13 +143,15 @@ int countFilesInDirectory(DIR *dr)
     return file_count;
 }
 
-void printFileIndent(int depth, int **last_at_depth, Parameters *params)
+void printFileIndent(int depth, int *last_at_depth, Parameters *params)
 {
     if (!params->dont_indent)
     {
+        char *vertical_pipe_type = params->ascii_pipes ? "|  " : "┃  ";
+
         for (int i = 0; i < depth - 1; i++)
         {
-            printf(last_at_depth[i] ? "  " : BLK "┃  " COLOR_RESET);
+            printf(last_at_depth[i] ? "  " : BLK "%s" COLOR_RESET, vertical_pipe_type);
         }
     }
 }
@@ -157,7 +160,8 @@ void printFilePrefixPipe(int current_file, int file_count, Parameters *params)
 {
     if (!params->dont_indent)
     {
-        printf(current_file == file_count ? BLK "┗━ " COLOR_RESET : BLK "┣━ " COLOR_RESET);
+        char *pipes_type = params->ascii_pipes ? "+- " : (current_file == file_count ? "┗━ " : "┣━ ");
+        printf(BLK "%s" COLOR_RESET, pipes_type);
     }
 }
 
@@ -203,12 +207,10 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
         strcat(newPath, "/");
         strcat(newPath, de->d_name);
 
-        printFileIndent(depth, &last_at_depth, params);
-
         current_file++;
 
-        printFilePrefixPipe(depth, file_count, params);
-
+        printFileIndent(depth, last_at_depth, params);
+        printFilePrefixPipe(current_file, file_count, params);
         printObjectNameFromPath(newPath, de, params);
 
         if (current_file == file_count)
@@ -233,7 +235,7 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "rifsF";
+    char *options = "rifsAF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -253,6 +255,9 @@ int handleParameters(int argc, char **argv, Parameters *params)
             break;
         case 's':
             params->print_file_size = true;
+            break;
+        case 'A':
+            params->ascii_pipes = true;
             break;
 
         default:
@@ -296,6 +301,7 @@ Parameters initializeParameters()
     params.lsF = false;
     params.print_file_size = false;
     params.recursive = false;
+    params.ascii_pipes = false;
 
     return params;
 }

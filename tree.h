@@ -58,7 +58,7 @@ int countFilesInDirectory(DIR *dr);
  * @param last_at_depth An array indicating whether the last file at each depth has been processed.
  * @param params The parameters structure.
  */
-void printFileIndent(int depth, int **last_at_depth, Parameters *params);
+void printFileIndent(int depth, int *last_at_depth, Parameters *params);
 
 /**
  * @brief Function to print the prefix for a file, including a pipe character if necessary.
