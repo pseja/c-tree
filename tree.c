@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>
 #include <ctype.h>
@@ -14,7 +15,32 @@ typedef struct t_parameters
     bool lsF;
     bool dont_indent;
     bool full_path;
+    bool directories_only;
+    bool print_file_size;
 } Parameters;
+
+int getFileSize(const char *file_path)
+{
+    FILE *fp = fopen(file_path, "rb");
+    if (fp == NULL)
+    {
+        fprintf(stderr, RED "Failed to read %s\n" COLOR_RESET, file_path);
+        return -1;
+    }
+
+    struct stat buf;
+    int fd = fileno(fp);
+    fstat(fd, &buf);
+    off_t size = buf.st_size;
+
+    if (fclose(fp) == EOF)
+    {
+        fprintf(stderr, RED "Failed to close %s\n" COLOR_RESET, file_path);
+        return -1;
+    }
+
+    return size;
+}
 
 void strToLower(char *str)
 {
@@ -47,11 +73,6 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
 {
     char *last_slash = strrchr(path, '/');
 
-    if (!last_slash)
-    {
-        printf("%s\n", path);
-    }
-
     char object_path[4096];
     if (params->full_path)
     {
@@ -60,6 +81,15 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
     else
     {
         strcpy(object_path, last_slash + 1);
+    }
+
+    if (params->print_file_size)
+    {
+        int file_size = getFileSize(path);
+        if (file_size != -1)
+        {
+            printf("[%*d] ", 11, file_size);
+        }
     }
 
     switch (de->d_type)
@@ -104,7 +134,7 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
     }
 }
 
-void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
+int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
 {
     indent += 2;
     depth++;
@@ -112,13 +142,14 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
     struct dirent *de;
     int file_count = 0;
     int current_file = 0;
+    int err_code = 0;
 
     DIR *dr = opendir(root_path);
 
     if (dr == NULL)
     {
         fprintf(stderr, RED "Could not open '%s' directory\n" COLOR_RESET, root_path);
-        return;
+        return -1;
     }
 
     while ((de = readdir(dr)) != NULL)
@@ -148,6 +179,11 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
         current_file++;
 
         char *newPath = malloc(strlen(root_path) + strlen(de->d_name) + 2);
+        if (newPath == NULL)
+        {
+            fprintf(stderr, RED "Failed to allocate memory for new path\n" COLOR_RESET);
+            return -1;
+        }
         strcpy(newPath, root_path);
         strcat(newPath, "/");
         strcat(newPath, de->d_name);
@@ -189,7 +225,7 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
 
         if (de->d_type == DT_DIR && params->recursive)
         {
-            goThroughFiles(newPath, indent, last_at_depth, depth, params);
+            err_code = goThroughFiles(newPath, indent, last_at_depth, depth, params);
             last_at_depth[depth] = 0;
         }
 
@@ -197,12 +233,14 @@ void goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, 
     }
 
     closedir(dr);
+
+    return err_code;
 }
 
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "rifF";
+    char *options = "rifsF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
@@ -219,6 +257,9 @@ int handleParameters(int argc, char **argv, Parameters *params)
             break;
         case 'f':
             params->full_path = true;
+            break;
+        case 's':
+            params->print_file_size = true;
             break;
 
         default:
@@ -245,16 +286,30 @@ int treeSetup(int argc, char **argv, Parameters *params)
         strcpy(path, ".");
     }
 
-    goThroughFiles(path, -2, last_at_depth, 0, params);
+    int err_code = goThroughFiles(path, -2, last_at_depth, 0, params);
 
     free(last_at_depth);
 
-    return 0;
+    return err_code;
+}
+
+Parameters initializeParameters()
+{
+    Parameters params;
+
+    params.directories_only = false;
+    params.dont_indent = false;
+    params.full_path = false;
+    params.lsF = false;
+    params.print_file_size = false;
+    params.recursive = false;
+
+    return params;
 }
 
 int main(int argc, char **argv)
 {
-    Parameters params;
+    Parameters params = initializeParameters();
 
     if (handleParameters(argc, argv, &params) != 0)
     {
@@ -265,5 +320,6 @@ int main(int argc, char **argv)
     {
         return 1;
     }
+
     return 0;
 }
