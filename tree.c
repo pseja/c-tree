@@ -187,6 +187,22 @@ void printFilePrefixPipe(int current_file, int file_count, Parameters *params, s
     }
 }
 
+char *extendPathWithCurrentObject(char *path, struct dirent *de)
+{
+    char *newPath = malloc(strlen(path) + strlen(de->d_name) + 2);
+    if (newPath == NULL)
+    {
+        fprintf(stderr, RED "Failed to allocate memory for new path\n" COLOR_RESET);
+        return NULL;
+    }
+
+    strcpy(newPath, path);
+    strcat(newPath, "/");
+    strcat(newPath, de->d_name);
+
+    return newPath;
+}
+
 int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, Parameters *params)
 {
     indent += 2;
@@ -219,15 +235,11 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
             continue;
         }
 
-        char *newPath = malloc(strlen(root_path) + strlen(de->d_name) + 2);
+        char *newPath = extendPathWithCurrentObject(root_path, de);
         if (newPath == NULL)
         {
-            fprintf(stderr, RED "Failed to allocate memory for new path\n" COLOR_RESET);
             return -1;
         }
-        strcpy(newPath, root_path);
-        strcat(newPath, "/");
-        strcat(newPath, de->d_name);
 
         if (!params->directories_only || (de->d_type == DT_DIR))
         {

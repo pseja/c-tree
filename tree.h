@@ -69,6 +69,14 @@ void printFileIndent(int depth, int *last_at_depth, Parameters *params, struct d
 void printFilePrefixPipe(int current_file, int file_count, Parameters *params, struct dirent *de);
 
 /**
+ * @brief Extends a given path with the name of the current object.
+ * @param path The base directory path.
+ * @param de A pointer to a dirent structure representing the current object.
+ * @return A pointer to the extended path string.
+ */
+char *extendPathWithCurrentObject(char *path, struct dirent *de);
+
+/**
  * @brief Function to go through files in a directory.
  * @param root_path Path to the root directory.
  * @param indent Indentation level.
