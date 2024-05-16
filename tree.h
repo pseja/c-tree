@@ -58,7 +58,7 @@ int countFilesInDirectory(DIR *dr, Parameters *params);
  * @param last_at_depth An array indicating whether the last file at each depth has been processed.
  * @param params The parameters structure.
  */
-void printFileIndent(int depth, int *last_at_depth, Parameters *params);
+void printFileIndent(int depth, int *last_at_depth, Parameters *params, struct dirent *de);
 
 /**
  * @brief Function to print the prefix for a file, including a pipe character if necessary.
@@ -66,7 +66,7 @@ void printFileIndent(int depth, int *last_at_depth, Parameters *params);
  * @param file_count The total number of files in the directory.
  * @param params The parameters structure.
  */
-void printFilePrefixPipe(int current_file, int file_count, Parameters *params);
+void printFilePrefixPipe(int current_file, int file_count, Parameters *params, struct dirent *de);
 
 /**
  * @brief Function to go through files in a directory.
@@ -89,13 +89,13 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
 int handleParameters(int argc, char **argv, Parameters *params);
 
 /**
- * @brief Function to setup the tree program.
+ * @brief Function to setup and walk the file tree.
  * @param argc Argument count.
  * @param argv Argument vector.
  * @param params Parameters structure.
  * @return Status of the operation.
  */
-int treeSetup(int argc, char **argv, Parameters *params);
+int walkFileTree(int argc, char **argv, Parameters *params);
 
 /**
  * @brief Function to initialize parameters.

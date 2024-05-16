@@ -79,21 +79,31 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
     if (params->print_file_size)
     {
         int file_size = getFileSize(path);
-        if (file_size != -1)
+        if (file_size != -1 && (!params->directories_only || (de->d_type == DT_DIR)))
         {
             printf("[%*d] ", 11, file_size);
         }
     }
 
-    switch (de->d_type)
+    if (de->d_type == DT_DIR)
     {
-    case DT_DIR: // directory
         if (params->lsF)
         {
             strcat(object_path, "/");
         }
         printf(BLU "%s\n" COLOR_RESET, object_path);
-        break;
+        return;
+    }
+    else
+    {
+        if (params->directories_only)
+        {
+            return;
+        }
+    }
+
+    switch (de->d_type)
+    {
     case DT_FIFO: // named pipe or FIFO
         if (params->lsF)
         {
@@ -101,6 +111,7 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
         }
         printf(MAG "%s\n" COLOR_RESET, object_path);
         break;
+
     case DT_SOCK: // local-domain socket
         if (params->lsF)
         {
@@ -108,12 +119,15 @@ void printObjectNameFromPath(char *path, struct dirent *de, Parameters *params)
         }
         printf(RED "%s\n" COLOR_RESET, object_path);
         break;
+
     case DT_CHR: // character device
         printf(GRN "%s\n" COLOR_RESET, object_path);
         break;
+
     case DT_BLK: // block device
         printf(YEL "%s\n" COLOR_RESET, object_path);
         break;
+
     case DT_LNK: // symbolic link
         printf(CYN "%s\n" COLOR_RESET, object_path);
         break;
@@ -139,29 +153,34 @@ int countFilesInDirectory(DIR *dr, Parameters *params)
             continue;
         }
 
-        file_count++;
+        if (!params->directories_only || (de->d_type == DT_DIR))
+        {
+            file_count++;
+        }
     }
     rewinddir(dr);
 
+    // printf("file_count: %d\n", file_count);
     return file_count;
 }
 
-void printFileIndent(int depth, int *last_at_depth, Parameters *params)
+void printFileIndent(int depth, int *last_at_depth, Parameters *params, struct dirent *de)
 {
-    if (!params->dont_indent)
+    if (!params->dont_indent && (!params->directories_only || (de->d_type == DT_DIR)))
     {
         char *vertical_pipe_type = params->ascii_pipes ? "|  " : "┃  ";
 
         for (int i = 0; i < depth - 1; i++)
         {
+
             printf(last_at_depth[i] ? "  " : BLK "%s" COLOR_RESET, vertical_pipe_type);
         }
     }
 }
 
-void printFilePrefixPipe(int current_file, int file_count, Parameters *params)
+void printFilePrefixPipe(int current_file, int file_count, Parameters *params, struct dirent *de)
 {
-    if (!params->dont_indent)
+    if (!params->dont_indent && (!params->directories_only || (de->d_type == DT_DIR)))
     {
         char *pipes_type = params->ascii_pipes ? "+- " : (current_file == file_count ? "┗━ " : "┣━ ");
         printf(BLK "%s" COLOR_RESET, pipes_type);
@@ -210,10 +229,13 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
         strcat(newPath, "/");
         strcat(newPath, de->d_name);
 
-        current_file++;
+        if (!params->directories_only || (de->d_type == DT_DIR))
+        {
+            current_file++;
+        }
 
-        printFileIndent(depth, last_at_depth, params);
-        printFilePrefixPipe(current_file, file_count, params);
+        printFileIndent(depth, last_at_depth, params, de);
+        printFilePrefixPipe(current_file, file_count, params, de);
         printObjectNameFromPath(newPath, de, params);
 
         if (current_file == file_count)
@@ -238,23 +260,26 @@ int goThroughFiles(char *root_path, int indent, int *last_at_depth, int depth, P
 int handleParameters(int argc, char **argv, Parameters *params)
 {
     int option = 0;
-    char *options = "arifsAF";
+    char *options = "adfirsAF";
 
     while ((option = getopt(argc, argv, options)) != -1)
     {
         switch (option)
         {
-        case 'r':
-            params->recursive = true;
+        case 'a':
+            params->print_hidden = true;
+            break;
+        case 'd':
+            params->directories_only = true;
+            break;
+        case 'f':
+            params->full_path = true;
             break;
         case 'i':
             params->dont_indent = true;
             break;
-        case 'F':
-            params->lsF = true;
-            break;
-        case 'f':
-            params->full_path = true;
+        case 'r':
+            params->recursive = true;
             break;
         case 's':
             params->print_file_size = true;
@@ -262,8 +287,8 @@ int handleParameters(int argc, char **argv, Parameters *params)
         case 'A':
             params->ascii_pipes = true;
             break;
-        case 'a':
-            params->print_hidden = true;
+        case 'F':
+            params->lsF = true;
             break;
 
         default:
@@ -275,7 +300,7 @@ int handleParameters(int argc, char **argv, Parameters *params)
     return 0;
 }
 
-int treeSetup(int argc, char **argv, Parameters *params)
+int walkFileTree(int argc, char **argv, Parameters *params)
 {
     int *last_at_depth = calloc(256, sizeof(int));
     if (last_at_depth == NULL)
@@ -322,7 +347,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (treeSetup(argc, argv, &params) != 0)
+    if (walkFileTree(argc, argv, &params) != 0)
     {
         return 1;
     }
